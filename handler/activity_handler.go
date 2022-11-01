@@ -5,28 +5,28 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gin-gonic/gin"
 	"github.com/sabilhaq/devcode-todo-go/database"
 	"github.com/sabilhaq/devcode-todo-go/models"
 	"github.com/sabilhaq/devcode-todo-go/utils"
 )
 
-func GetActivities(c *fiber.Ctx) error {
+func GetActivities(c *gin.Context) {
 	db := database.DBConn
 	var activities []models.Activity
 	db.Find(&activities)
 
-	return c.JSON(models.Response{
+	c.JSON(http.StatusOK, models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data:    activities,
 	})
 }
 
-func CreateActivity(c *fiber.Ctx) error {
+func CreateActivity(c *gin.Context) {
 	activity := new(models.Activity)
-	if err := c.BodyParser(&activity); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.Response{
+	if err := c.ShouldBindJSON(&activity); err != nil {
+		c.JSON(http.StatusBadRequest, models.Response{
 			Status:  http.StatusText(http.StatusBadRequest),
 			Message: err.Error(),
 			Data:    map[string]interface{}{},
@@ -35,7 +35,7 @@ func CreateActivity(c *fiber.Ctx) error {
 
 	errors := utils.ValidateStruct(*activity)
 	if errors != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.Response{
+		c.JSON(http.StatusBadRequest, models.Response{
 			Status:  http.StatusText(http.StatusBadRequest),
 			Message: fmt.Sprintf("%v cannot be null", errors[0].FailedField),
 			Data:    map[string]interface{}{},
@@ -45,36 +45,36 @@ func CreateActivity(c *fiber.Ctx) error {
 	db := database.DBConn
 	db.Create(&activity)
 
-	return c.Status(fiber.StatusCreated).JSON(models.Response{
+	c.JSON(http.StatusCreated, models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data:    activity,
 	})
 }
 
-func GetActivity(c *fiber.Ctx) error {
+func GetActivity(c *gin.Context) {
 	db := database.DBConn
 	var activity models.Activity
-	id, _ := strconv.Atoi(c.Params("id"))
+	id, _ := strconv.Atoi(c.Param("id"))
 	if err := db.First(&activity, id).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(models.Response{
+		c.JSON(http.StatusNotFound, models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Activity with ID %v Not Found", id),
 			Data:    map[string]interface{}{},
 		})
 	}
 
-	return c.JSON(models.Response{
+	c.JSON(http.StatusOK, models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data:    activity,
 	})
 }
 
-func UpdateActivity(c *fiber.Ctx) error {
+func UpdateActivity(c *gin.Context) {
 	req := new(models.Activity)
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.Response{
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.Response{
 			Status:  http.StatusText(http.StatusBadRequest),
 			Message: err.Error(),
 			Data:    map[string]interface{}{},
@@ -83,7 +83,7 @@ func UpdateActivity(c *fiber.Ctx) error {
 
 	errors := utils.ValidateStruct(*req)
 	if errors != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.Response{
+		c.JSON(http.StatusBadRequest, models.Response{
 			Status:  http.StatusText(http.StatusBadRequest),
 			Message: fmt.Sprintf("%v cannot be null", errors[0].FailedField),
 			Data:    map[string]interface{}{},
@@ -91,10 +91,10 @@ func UpdateActivity(c *fiber.Ctx) error {
 	}
 
 	db := database.DBConn
-	id, _ := strconv.Atoi(c.Params("id"))
+	id, _ := strconv.Atoi(c.Param("id"))
 	activity := new(models.Activity)
 	if err := db.First(&activity, id).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(models.Response{
+		c.JSON(http.StatusNotFound, models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Activity with ID %v Not Found", id),
 			Data:    map[string]interface{}{},
@@ -108,20 +108,20 @@ func UpdateActivity(c *fiber.Ctx) error {
 
 	db.Save(&activity)
 
-	return c.JSON(models.Response{
+	c.JSON(http.StatusOK, models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data:    activity,
 	})
 }
 
-func DeleteActivity(c *fiber.Ctx) error {
+func DeleteActivity(c *gin.Context) {
 	db := database.DBConn
-	id, _ := strconv.Atoi(c.Params("id"))
+	id, _ := strconv.Atoi(c.Param("id"))
 
 	res := db.Delete(&models.Activity{}, id)
 	if res.RowsAffected == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(models.Response{
+		c.JSON(http.StatusNotFound, models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Activity with ID %v Not Found", id),
 			Data:    map[string]interface{}{},
@@ -129,7 +129,7 @@ func DeleteActivity(c *fiber.Ctx) error {
 	}
 	db.Where("activity_group_id = ?", id).Delete(&models.Todo{})
 
-	return c.JSON(models.Response{
+	c.JSON(http.StatusOK, models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data:    map[string]interface{}{},

@@ -6,8 +6,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/gofiber/fiber/v2"
-	fiberLogger "github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/mattn/go-colorable"
 	"github.com/sabilhaq/devcode-todo-go/database"
@@ -49,26 +48,28 @@ func initDatabase() {
 	)
 }
 
-func setupRoutes(app *fiber.App) {
-	app.Use(fiberLogger.New())
+// func setupRoutes(app *fiber.App) {
+func setupRoutes(app *gin.Engine) {
+	// app.Use(fiberLogger.New())
 
-	app.Get("/activity-groups", handler.GetActivities)
-	app.Post("/activity-groups", handler.CreateActivity)
-	app.Get("/activity-groups/:id", handler.GetActivity)
-	app.Patch("/activity-groups/:id", handler.UpdateActivity)
-	app.Delete("/activity-groups/:id", handler.DeleteActivity)
+	app.GET("/activity-groups", handler.GetActivities)
+	app.POST("/activity-groups", handler.CreateActivity)
+	app.GET("/activity-groups/:id", handler.GetActivity)
+	app.PATCH("/activity-groups/:id", handler.UpdateActivity)
+	app.DELETE("/activity-groups/:id", handler.DeleteActivity)
 
-	app.Get("/todo-items", handler.GetTodos)
-	app.Post("/todo-items", handler.CreateTodo)
-	app.Get("/todo-items/:id", handler.GetTodo)
-	app.Patch("/todo-items/:id", handler.UpdateTodo)
-	app.Delete("/todo-items/:id", handler.DeleteTodo)
+	app.GET("/todo-items", handler.GetTodos)
+	app.POST("/todo-items", handler.CreateTodo)
+	app.GET("/todo-items/:id", handler.GetTodo)
+	app.PATCH("/todo-items/:id", handler.UpdateTodo)
+	app.DELETE("/todo-items/:id", handler.DeleteTodo)
 }
 
 func main() {
-	app := fiber.New()
+	app := gin.Default()
+
 	initDatabase()
 	setupRoutes(app)
 
-	log.Fatal(app.Listen(":3030"))
+	app.Run(":3030") // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }

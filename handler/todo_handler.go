@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gin-gonic/gin"
 	"github.com/sabilhaq/devcode-todo-go/database"
 	"github.com/sabilhaq/devcode-todo-go/models"
 	"github.com/sabilhaq/devcode-todo-go/utils"
 )
 
-func GetTodos(c *fiber.Ctx) error {
+func GetTodos(c *gin.Context) {
 	activityID, _ := strconv.Atoi(c.Query("activity_group_id"))
 
 	db := database.DBConn
@@ -39,17 +39,17 @@ func GetTodos(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(models.Response{
+	c.JSON(http.StatusOK, models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data:    todos,
 	})
 }
 
-func CreateTodo(c *fiber.Ctx) error {
+func CreateTodo(c *gin.Context) {
 	todo := new(models.Todo)
-	if err := c.BodyParser(&todo); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.Response{
+	if err := c.ShouldBindJSON(&todo); err != nil {
+		c.JSON(http.StatusBadRequest, models.Response{
 			Status:  http.StatusText(http.StatusBadRequest),
 			Message: err.Error(),
 			Data:    map[string]interface{}{},
@@ -58,7 +58,7 @@ func CreateTodo(c *fiber.Ctx) error {
 
 	errors := utils.ValidateStruct(*todo)
 	if errors != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.Response{
+		c.JSON(http.StatusBadRequest, models.Response{
 			Status:  http.StatusText(http.StatusBadRequest),
 			Message: fmt.Sprintf("%v cannot be null", errors[0].FailedField),
 			Data:    map[string]interface{}{},
@@ -71,7 +71,7 @@ func CreateTodo(c *fiber.Ctx) error {
 
 	db.Create(&todo)
 
-	return c.Status(fiber.StatusCreated).JSON(models.Response{
+	c.JSON(http.StatusCreated, models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data: models.CreateTodoResponse{
@@ -87,12 +87,12 @@ func CreateTodo(c *fiber.Ctx) error {
 	})
 }
 
-func GetTodo(c *fiber.Ctx) error {
+func GetTodo(c *gin.Context) {
 	db := database.DBConn
 	var todo models.Todo
-	id, _ := strconv.Atoi(c.Params("id"))
+	id, _ := strconv.Atoi(c.Param("id"))
 	if err := db.First(&todo, id).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(models.Response{
+		c.JSON(http.StatusNotFound, models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Todo with ID %v Not Found", id),
 			Data:    map[string]interface{}{},
@@ -104,7 +104,7 @@ func GetTodo(c *fiber.Ctx) error {
 		isActive = true
 	}
 
-	return c.JSON(models.Response{
+	c.JSON(http.StatusOK, models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data: models.GetTodoResponse{
@@ -120,15 +120,15 @@ func GetTodo(c *fiber.Ctx) error {
 	})
 }
 
-func UpdateTodo(c *fiber.Ctx) error {
+func UpdateTodo(c *gin.Context) {
 	req := new(models.Todo)
-	_ = c.BodyParser(&req)
+	_ = c.ShouldBindJSON(&req)
 
 	db := database.DBConn
-	id, _ := strconv.Atoi(c.Params("id"))
+	id, _ := strconv.Atoi(c.Param("id"))
 	todo := new(models.Todo)
 	if err := db.First(&todo, id).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(models.Response{
+		c.JSON(http.StatusNotFound, models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Todo with ID %v Not Found", id),
 			Data:    map[string]interface{}{},
@@ -150,27 +150,27 @@ func UpdateTodo(c *fiber.Ctx) error {
 
 	db.Save(&todo)
 
-	return c.JSON(models.Response{
+	c.JSON(http.StatusOK, models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data:    todo,
 	})
 }
 
-func DeleteTodo(c *fiber.Ctx) error {
+func DeleteTodo(c *gin.Context) {
 	db := database.DBConn
-	id, _ := strconv.Atoi(c.Params("id"))
+	id, _ := strconv.Atoi(c.Param("id"))
 
 	res := db.Delete(&models.Todo{}, id)
 	if res.RowsAffected == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(models.Response{
+		c.JSON(http.StatusNotFound, models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Todo with ID %v Not Found", id),
 			Data:    map[string]interface{}{},
 		})
 	}
 
-	return c.JSON(models.Response{
+	c.JSON(http.StatusOK, models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data:    map[string]interface{}{},
