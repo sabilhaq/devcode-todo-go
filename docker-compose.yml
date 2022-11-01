@@ -1,0 +1,39 @@
+version: "3"
+services:
+  app:
+    container_name: golang_container
+    build: .
+    ports:
+      - 3030:3030
+    restart: on-failure
+    volumes:
+      - api:/usr/src/app/
+    depends_on:
+      - mysqldb
+    networks:
+      - learning
+
+  mysqldb:
+    image: mysql:5.7
+    container_name: mysql_container
+    ports:
+      - 3306:3306
+    environment:
+      - MYSQL_ROOT_HOST=${MYSQL_HOST}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DBNAME}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - database_mysql:/var/lib/mysql
+    networks:
+      - learning
+
+volumes:
+  api:
+  database_mysql:
+
+# Networks to be created to facilitate communication between containers
+networks:
+  learning:
+    driver: bridge
