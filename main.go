@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/go-playground/validator"
+	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
-	"github.com/labstack/echo/v4"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -54,16 +54,35 @@ type (
 		Data    any    `json:"data"`
 	}
 
-	CustomValidator struct {
-		validator *validator.Validate
+	ErrorResponse struct {
+		FailedField string
+		Tag         string
+		Value       string
 	}
 )
 
-func (cv *CustomValidator) Validate(i interface{}) error {
-	if err := cv.validator.Struct(i); err != nil {
-		return err
+var validate = validator.New()
+
+func ValidateStruct(s interface{}) []*ErrorResponse {
+	var errors []*ErrorResponse
+	err := validate.Struct(s)
+	if err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			var element ErrorResponse
+			var errorField string
+			if err.Field() == "Title" {
+				errorField = "title"
+			} else if err.Field() == "ActivityGroupID" {
+				errorField = "activity_group_id"
+			}
+
+			element.FailedField = errorField
+			element.Tag = err.Tag()
+			element.Value = err.Param()
+			errors = append(errors, &element)
+		}
 	}
-	return nil
+	return errors
 }
 
 func main() {
@@ -84,55 +103,48 @@ func main() {
 		&Todo{},
 	)
 
-	e := echo.New()
-	e.Validator = &CustomValidator{validator: validator.New()}
-
-	e.GET("/", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{
-			"message": "Welcome to API Todo",
-		})
-	})
+	app := fiber.New()
 
 	// Activity handler
-	activityGroups := e.Group("/activity-groups")
+	activityGroups := app.Group("/activity-groups")
 
-	activityGroups.GET("", func(c echo.Context) error {
+	activityGroups.Get("", func(c *fiber.Ctx) error {
 		activities := new([]Activity)
 		db.Find(&activities)
-		return c.JSON(http.StatusOK, Response{
+		return c.Status(http.StatusOK).JSON(Response{
 			Status:  "Success",
 			Message: "Success",
 			Data:    activities,
 		})
 	})
 
-	activityGroups.GET("/:id", func(c echo.Context) error {
-		id := c.Param("id")
+	activityGroups.Get("/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
 		activityDB := new(Activity)
 		db.First(&activityDB, id)
 		idInt, _ := strconv.Atoi(id)
 		if int(activityDB.ID) != idInt {
-			return c.JSON(http.StatusNotFound, Response{
+			return c.Status(http.StatusNotFound).JSON(Response{
 				Status:  "Not Found",
 				Message: fmt.Sprintf("Activity with ID %v Not Found", id),
 				Data:    map[string]any{},
 			})
 		}
 
-		return c.JSON(http.StatusOK, Response{
+		return c.Status(http.StatusOK).JSON(Response{
 			Status:  "Success",
 			Message: "Success",
 			Data:    activityDB,
 		})
 	})
 
-	activityGroups.POST("", func(c echo.Context) error {
+	activityGroups.Post("", func(c *fiber.Ctx) error {
 		activity := new(Activity)
-		if err := c.Bind(activity); err != nil {
+		if err := c.BodyParser(activity); err != nil {
 			return err
 		}
-		if err := c.Validate(activity); err != nil {
-			return c.JSON(http.StatusBadRequest, Response{
+		if err := ValidateStruct(activity); err != nil {
+			return c.Status(http.StatusBadRequest).JSON(Response{
 				Status:  "Bad Request",
 				Message: "title cannot be null",
 				Data:    map[string]any{},
@@ -140,20 +152,20 @@ func main() {
 		}
 
 		db.Create(&activity)
-		return c.JSON(http.StatusCreated, Response{
+		return c.Status(http.StatusCreated).JSON(Response{
 			Status:  "Success",
 			Message: "Success",
 			Data:    activity,
 		})
 	})
 
-	activityGroups.DELETE("/:id", func(c echo.Context) error {
-		id := c.Param("id")
+	activityGroups.Delete("/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
 		activityDB := new(Activity)
 		db.First(&activityDB, id)
 		idInt, _ := strconv.Atoi(id)
 		if int(activityDB.ID) != idInt {
-			return c.JSON(http.StatusNotFound, Response{
+			return c.Status(http.StatusNotFound).JSON(Response{
 				Status:  "Not Found",
 				Message: fmt.Sprintf("Activity with ID %v Not Found", id),
 				Data:    map[string]any{},
@@ -162,32 +174,32 @@ func main() {
 
 		db.Delete(&activityDB)
 		db.Where("activity_id = ?", activityDB.ID).Delete(&Todo{})
-		return c.JSON(http.StatusOK, Response{
+		return c.Status(http.StatusOK).JSON(Response{
 			Status:  "Success",
 			Message: "Success",
 			Data:    map[string]any{},
 		})
 	})
 
-	activityGroups.PATCH("/:id", func(c echo.Context) error {
+	activityGroups.Patch("/:id", func(c *fiber.Ctx) error {
 		activity := new(Activity)
-		if err := c.Bind(activity); err != nil {
+		if err := c.BodyParser(activity); err != nil {
 			return err
 		}
-		if err := c.Validate(activity); err != nil {
-			return c.JSON(http.StatusBadRequest, Response{
+		if err := ValidateStruct(activity); err != nil {
+			return c.Status(http.StatusBadRequest).JSON(Response{
 				Status:  "Bad Request",
 				Message: "title cannot be null",
 				Data:    map[string]any{},
 			})
 		}
 
-		id := c.Param("id")
+		id := c.Params("id")
 		activityDB := new(Activity)
 		db.First(&activityDB, id)
 		idInt, _ := strconv.Atoi(id)
 		if int(activityDB.ID) != idInt {
-			return c.JSON(http.StatusNotFound, Response{
+			return c.Status(http.StatusNotFound).JSON(Response{
 				Status:  "Not Found",
 				Message: fmt.Sprintf("Activity with ID %v Not Found", id),
 				Data:    map[string]any{},
@@ -200,7 +212,7 @@ func main() {
 		}
 
 		db.Save(&activityDB)
-		return c.JSON(http.StatusOK, Response{
+		return c.Status(http.StatusOK).JSON(Response{
 			Status:  "Success",
 			Message: "Success",
 			Data:    activityDB,
@@ -208,10 +220,10 @@ func main() {
 	})
 
 	// Todo handler
-	todoItems := e.Group("/todo-items")
+	todoItems := app.Group("/todo-items")
 
-	todoItems.GET("", func(c echo.Context) error {
-		activityID := c.QueryParam("activity_group_id")
+	todoItems.Get("", func(c *fiber.Ctx) error {
+		activityID := c.Query("activity_group_id")
 		activityIDInt := 0
 		todos := []Todo{}
 		if activityID != "" {
@@ -238,21 +250,21 @@ func main() {
 			})
 		}
 
-		return c.JSON(http.StatusOK, Response{
+		return c.Status(http.StatusOK).JSON(Response{
 			Status:  "Success",
 			Message: "Success",
 			Data:    todosResp,
 		})
 	})
 
-	todoItems.GET("/:id", func(c echo.Context) error {
-		id := c.Param("id")
+	todoItems.Get("/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
 		todoDB := new(Todo)
 		res := db.First(&todoDB, id)
 
 		if res.Error != nil {
 			if errors.Is(res.Error, gorm.ErrRecordNotFound) {
-				return c.JSON(http.StatusNotFound, Response{
+				return c.Status(http.StatusNotFound).JSON(Response{
 					Status:  "Not Found",
 					Message: fmt.Sprintf("Todo with ID %v Not Found", id),
 					Data:    map[string]any{},
@@ -274,32 +286,24 @@ func main() {
 			UpdatedAt:       todoDB.UpdatedAt,
 			DeletedAt:       todoDB.DeletedAt,
 		}
-		return c.JSON(http.StatusOK, Response{
+		return c.Status(http.StatusOK).JSON(Response{
 			Status:  "Success",
 			Message: "Success",
 			Data:    todoResp,
 		})
 	})
 
-	todoItems.POST("", func(c echo.Context) error {
+	todoItems.Post("", func(c *fiber.Ctx) error {
 		todo := new(Todo)
-		if err := c.Bind(todo); err != nil {
+		if err := c.BodyParser(todo); err != nil {
 			return err
 		}
-		if err := c.Validate(todo); err != nil {
-			for _, err := range err.(validator.ValidationErrors) {
-				errorField := ""
-				if err.Field() == "Title" {
-					errorField = "title"
-				} else if err.Field() == "ActivityGroupID" {
-					errorField = "activity_group_id"
-				}
-				return c.JSON(http.StatusBadRequest, Response{
-					Status:  "Bad Request",
-					Message: fmt.Sprintf("%v cannot be null", errorField),
-					Data:    map[string]any{},
-				})
-			}
+		if err := ValidateStruct(todo); err != nil {
+			return c.Status(http.StatusBadRequest).JSON(Response{
+				Status:  "Bad Request",
+				Message: fmt.Sprintf("%v cannot be null", err[0].FailedField),
+				Data:    map[string]any{},
+			})
 		}
 
 		todo.IsActive = "1"
@@ -307,7 +311,7 @@ func main() {
 
 		result := db.Create(&todo)
 		if result.Error != nil {
-			return c.JSON(http.StatusBadRequest, Response{
+			return c.Status(http.StatusBadRequest).JSON(Response{
 				Status:  "Bad Request",
 				Message: "activity_group_id not found",
 				Data:    map[string]any{},
@@ -339,20 +343,20 @@ func main() {
 			UpdatedAt:       todo.UpdatedAt,
 			DeletedAt:       todo.DeletedAt,
 		}
-		return c.JSON(http.StatusCreated, Response{
+		return c.Status(http.StatusCreated).JSON(Response{
 			Status:  "Success",
 			Message: "Success",
 			Data:    todoResp,
 		})
 	})
 
-	todoItems.DELETE("/:id", func(c echo.Context) error {
-		id := c.Param("id")
+	todoItems.Delete("/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
 		todoDB := new(Todo)
 		db.First(&todoDB, id)
 		idInt, _ := strconv.Atoi(id)
 		if int(todoDB.ID) != idInt {
-			return c.JSON(http.StatusNotFound, Response{
+			return c.Status(http.StatusNotFound).JSON(Response{
 				Status:  "Not Found",
 				Message: fmt.Sprintf("Todo with ID %v Not Found", id),
 				Data:    map[string]any{},
@@ -360,26 +364,26 @@ func main() {
 		}
 
 		db.Delete(&todoDB)
-		return c.JSON(http.StatusOK, Response{
+		return c.Status(http.StatusOK).JSON(Response{
 			Status:  "Success",
 			Message: "Success",
 			Data:    map[string]any{},
 		})
 	})
 
-	todoItems.PATCH("/:id", func(c echo.Context) error {
-		id := c.Param("id")
+	todoItems.Patch("/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
 		todoDB := new(Todo)
 		res := db.First(&todoDB, id)
 		if res.Error != nil {
-			return c.JSON(http.StatusNotFound, Response{
+			return c.Status(http.StatusNotFound).JSON(Response{
 				Status:  "Not Found",
 				Message: fmt.Sprintf("Todo with ID %v Not Found", id),
 				Data:    map[string]any{},
 			})
 		}
 		if strconv.Itoa(todoDB.ID) != id {
-			return c.JSON(http.StatusNotFound, Response{
+			return c.Status(http.StatusNotFound).JSON(Response{
 				Status:  "Not Found",
 				Message: fmt.Sprintf("Todo with ID %v Not Found", id),
 				Data:    map[string]any{},
@@ -387,7 +391,7 @@ func main() {
 		}
 
 		todo := new(Todo)
-		_ = c.Bind(todo)
+		_ = c.BodyParser(todo)
 
 		if todo.ActivityGroupID != 0 {
 			todoDB.ActivityGroupID = todo.ActivityGroupID
@@ -408,12 +412,12 @@ func main() {
 		}
 
 		db.Save(todoDB)
-		return c.JSON(http.StatusOK, Response{
+		return c.Status(http.StatusOK).JSON(Response{
 			Status:  "Success",
 			Message: "Success",
 			Data:    todoDB,
 		})
 	})
 
-	e.Logger.Fatal(e.Start(":3030"))
+	log.Fatal(app.Listen(":3030"))
 }
