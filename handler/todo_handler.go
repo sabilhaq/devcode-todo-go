@@ -21,7 +21,7 @@ func GetTodos(c *fiber.Ctx) error {
 	var result []models.Todo
 	db.Find(&result)
 
-	var todos []models.GetTodoResponse
+	todos := []models.GetTodoResponse{}
 	for _, todo := range result {
 		var isActive bool
 		if todo.IsActive == "1" {
@@ -71,7 +71,7 @@ func CreateTodo(c *fiber.Ctx) error {
 
 	db.Create(&todo)
 
-	return c.JSON(models.Response{
+	return c.Status(fiber.StatusCreated).JSON(models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data: models.CreateTodoResponse{
@@ -92,7 +92,7 @@ func GetTodo(c *fiber.Ctx) error {
 	var todo models.Todo
 	id, _ := strconv.Atoi(c.Params("id"))
 	if err := db.First(&todo, id).Error; err != nil {
-		return c.JSON(models.Response{
+		return c.Status(fiber.StatusNotFound).JSON(models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Todo with ID %v Not Found", id),
 			Data:    map[string]interface{}{},
@@ -122,28 +122,13 @@ func GetTodo(c *fiber.Ctx) error {
 
 func UpdateTodo(c *fiber.Ctx) error {
 	req := new(models.Todo)
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.Response{
-			Status:  http.StatusText(http.StatusBadRequest),
-			Message: err.Error(),
-			Data:    map[string]interface{}{},
-		})
-	}
-
-	// errors := utils.ValidateStruct(*req)
-	// if errors != nil {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(models.Response{
-	// 		Status:  http.StatusText(http.StatusBadRequest),
-	// 		Message: fmt.Sprintf("%v cannot be null", errors[0].FailedField),
-	// 		Data:    map[string]interface{}{},
-	// 	})
-	// }
+	_ = c.BodyParser(&req)
 
 	db := database.DBConn
 	id, _ := strconv.Atoi(c.Params("id"))
 	todo := new(models.Todo)
 	if err := db.First(&todo, id).Error; err != nil {
-		return c.JSON(models.Response{
+		return c.Status(fiber.StatusNotFound).JSON(models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Todo with ID %v Not Found", id),
 			Data:    map[string]interface{}{},
@@ -178,7 +163,7 @@ func DeleteTodo(c *fiber.Ctx) error {
 
 	res := db.Delete(&models.Todo{}, id)
 	if res.RowsAffected == 0 {
-		return c.JSON(models.Response{
+		return c.Status(fiber.StatusNotFound).JSON(models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Todo with ID %v Not Found", id),
 			Data:    map[string]interface{}{},

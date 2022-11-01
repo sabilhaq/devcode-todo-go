@@ -45,7 +45,7 @@ func CreateActivity(c *fiber.Ctx) error {
 	db := database.DBConn
 	db.Create(&activity)
 
-	return c.JSON(models.Response{
+	return c.Status(fiber.StatusCreated).JSON(models.Response{
 		Status:  "Success",
 		Message: "Success",
 		Data:    activity,
@@ -57,7 +57,7 @@ func GetActivity(c *fiber.Ctx) error {
 	var activity models.Activity
 	id, _ := strconv.Atoi(c.Params("id"))
 	if err := db.First(&activity, id).Error; err != nil {
-		return c.JSON(models.Response{
+		return c.Status(fiber.StatusNotFound).JSON(models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Activity with ID %v Not Found", id),
 			Data:    map[string]interface{}{},
@@ -94,7 +94,7 @@ func UpdateActivity(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	activity := new(models.Activity)
 	if err := db.First(&activity, id).Error; err != nil {
-		return c.JSON(models.Response{
+		return c.Status(fiber.StatusNotFound).JSON(models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Activity with ID %v Not Found", id),
 			Data:    map[string]interface{}{},
@@ -121,7 +121,7 @@ func DeleteActivity(c *fiber.Ctx) error {
 
 	res := db.Delete(&models.Activity{}, id)
 	if res.RowsAffected == 0 {
-		return c.JSON(models.Response{
+		return c.Status(fiber.StatusNotFound).JSON(models.Response{
 			Status:  http.StatusText(http.StatusNotFound),
 			Message: fmt.Sprintf("Activity with ID %v Not Found", id),
 			Data:    map[string]interface{}{},

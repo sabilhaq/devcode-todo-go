@@ -38,18 +38,15 @@ func initDatabase() {
 	)
 
 	dsn := fmt.Sprintf(`%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local`, os.Getenv("MYSQL_USER"), os.Getenv("MYSQL_PASSWORD"), os.Getenv("MYSQL_HOST"), "3306", os.Getenv("MYSQL_DBNAME"))
-	fmt.Println(dsn)
 	database.DBConn, err = gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: newLogger})
 	if err != nil {
-		panic("failed to connect database")
+		log.Fatal("failed to connect database")
 	}
-	fmt.Println("Connection Opened to Database")
 
 	database.DBConn.AutoMigrate(
 		&models.Activity{},
 		&models.Todo{},
 	)
-	fmt.Println("Database Migrated")
 }
 
 func setupRoutes(app *fiber.App) {
@@ -73,5 +70,5 @@ func main() {
 	initDatabase()
 	setupRoutes(app)
 
-	log.Fatal(app.Listen(":3000"))
+	log.Fatal(app.Listen(":3030"))
 }
